@@ -311,5 +311,22 @@ func addCmdTemplate(cmd *cobra.Command, namedFlagSets cliflag.NamedFlagSets) {
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n"+usageFmt, cmd.Long, cmd.UseLine())
 		cliflag.PrintSections(cmd.OutOrStdout(), namedFlagSets, cols)
+		if cmd.HasAvailableLocalFlags() {
+			fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", color.CyanString("Flags:"))
+			fmt.Fprint(cmd.OutOrStdout(), cmd.LocalFlags().FlagUsages())
+		}
+		if cmd.HasAvailableSubCommands() {
+			fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", color.CyanString("Available Commands:"))
+			for _, c := range cmd.Commands() {
+				if c.IsAvailableCommand() || c.Name() == "help" {
+					fmt.Fprintf(cmd.OutOrStdout(), "  %s %s\n", color.GreenString(c.Name()), c.Short)
+				}
+			}
+			fmt.Fprintf(
+				cmd.OutOrStdout(),
+				"\nUse \"%s [command] --help\" for more information about a command.\n",
+				cmd.CommandPath(),
+			)
+		}
 	})
 }
