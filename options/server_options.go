@@ -1,6 +1,8 @@
 package options
 
 import (
+	"strconv"
+
 	"github.com/spf13/pflag"
 )
 
@@ -37,4 +39,8 @@ func (o *ServerOptions) AddFlags(fs *pflag.FlagSet) {
 		"List of allowed middlewares for server, comma separated. If this list is empty default middlewares will be used.")
 	fs.IntVar(&o.Node, "server.node", o.Node, "Node ID for the server, used for clustering and routing purposes")
 	fs.StringSliceVar(&o.TrustedProxies, "server.trusted-proxies", o.TrustedProxies, "List of trusted proxy IP addresses or CIDR blocks, comma separated. If this list is empty default trusted proxies will be used.")
+}
+
+func (o *ServerOptions) Address() string {
+	return o.Host + ":" + strconv.Itoa(o.Port)
 }
