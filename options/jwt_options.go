@@ -1,9 +1,11 @@
 package options
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/pflag"
 )
 
@@ -47,4 +49,76 @@ func (o *JwtOptions) AddFlags(fs *pflag.FlagSet) {
 
 	fs.DurationVar(&o.MaxRefresh, "jwt.max-refresh", o.MaxRefresh, ""+
 		"This field allows clients to refresh their token until MaxRefresh has passed.")
+}
+
+func (o *JwtOptions) NewJwt() *JWT {
+	return &JWT{
+		Issuer:     o.Issuer,
+		Realm:      o.Realm,
+		Key:        []byte(o.Key),
+		Timeout:    o.Timeout,
+		MaxRefresh: o.MaxRefresh,
+	}
+}
+
+type JWTClaims struct {
+	jwt.RegisteredClaims // 用户ID在 Subject 字段中
+
+	Role string `json:"role"` // 可能没有，可能 "anon" 或 "service_role"
+}
+
+type JWT struct {
+	Issuer     string
+	Realm      string
+	Key        []byte
+	Timeout    time.Duration
+	MaxRefresh time.Duration
+}
+
+func NewJWT(opts *JwtOptions) *JWT {
+	return &JWT{
+		Issuer:     opts.Issuer,
+		Realm:      opts.Realm,
+		Key:        []byte(opts.Key),
+		Timeout:    opts.Timeout,
+		MaxRefresh: opts.MaxRefresh,
+	}
+}
+
+// 生成 JWT token
+func (j *JWT) GenerateJWT(userId string) (string, error) {
+	nowTime := time.Now()
+	expireTime := nowTime.Add(j.Timeout)
+
+	claims := JWTClaims{
+		Role: "user",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expireTime),
+			IssuedAt:  jwt.NewNumericDate(nowTime),
+			Issuer:    j.Issuer,
+			Subject:   userId,
+		},
+	}
+
+	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := tokenClaims.SignedString(j.Key)
+
+	return token, err
+}
+
+// 解析 JWT token
+func (j *JWT) ParseJWT(token string) (*JWTClaims, error) {
+	tokenClaims, err := jwt.ParseWithClaims(token, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return j.Key, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := tokenClaims.Claims.(*JWTClaims); ok && tokenClaims.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token")
 }
