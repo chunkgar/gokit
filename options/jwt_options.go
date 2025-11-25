@@ -86,7 +86,7 @@ func NewJWT(opts *JwtOptions) *JWT {
 }
 
 // 生成 JWT token
-func (j *JWT) GenerateJWT(userId string) (string, error) {
+func (j *JWT) GenerateJWTWithExpires(userId string) (string, time.Time, error) {
 	nowTime := time.Now()
 	expireTime := nowTime.Add(j.Timeout)
 
@@ -103,6 +103,12 @@ func (j *JWT) GenerateJWT(userId string) (string, error) {
 	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, err := tokenClaims.SignedString(j.Key)
 
+	return token, expireTime, err
+}
+
+// 生成 JWT token
+func (j *JWT) GenerateJWT(userId string) (string, error) {
+	token, _, err := j.GenerateJWTWithExpires(userId)
 	return token, err
 }
 
